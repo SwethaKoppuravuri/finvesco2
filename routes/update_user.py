@@ -3,10 +3,20 @@ from db import create_connection
 
 update_user = Blueprint('update_user', __name__)
 
-@update_user.route('/<int:user_id>', methods=['PATCH'])
-def update_user_route(user_id):
-    """Update an existing user in the database."""
+@update_user.route('/update', methods=['PATCH'])
+def update_user_route():
+    """Update an existing user in the database based on query parameters."""
     data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Invalid input'}), 400
+
+    name_filter = request.args.get('name')
+    id_filter = request.args.get('id')
+    description_filter = request.args.get('description')
+
+    if not name_filter and not description_filter and not id_filter:
+        return jsonify({'error': 'At least one filter parameter (name or description or id) must be provided'}), 400
 
     fields = []
     values = []
@@ -17,18 +27,34 @@ def update_user_route(user_id):
     if 'description' in data:
         fields.append("description = %s")
         values.append(data['description'])
-
+    if 'id' in data:
+        fields.append("id = %s")
+        values.append(data['id'])
 
     if not fields:
         return jsonify({'error': 'No fields to update'}), 400
 
-    values.append(user_id)
+    where_clauses = []
+    where_values = []
+
+    if name_filter:
+        where_clauses.append("name = %s")
+        where_values.append(name_filter)
+    if description_filter:
+        where_clauses.append("description = %s")
+        where_values.append(description_filter)
+    if id_filter:
+        where_clauses.append("id = %s")
+        where_values.append((id_filter))
+
+    values.extend(where_values)
 
     connection = create_connection()
     cursor = connection.cursor()
 
     try:
-        cursor.execute(f"UPDATE todos SET {', '.join(fields)} WHERE id = %s", values)
+        query = f"UPDATE todos SET {', '.join(fields)} WHERE {' AND '.join(where_clauses)}"
+        cursor.execute(query, values)
         connection.commit()
         if cursor.rowcount == 0:
             return jsonify({'error': 'User not found'}), 404

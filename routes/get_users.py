@@ -8,6 +8,7 @@ def get_users_route():
     """Fetch all users from the database."""
     name_filter = request.args.get('name')
     description_filter = request.args.get('description')
+    id_filter = request.args.get('id')
 
     connection = create_connection()
     cursor = connection.cursor(dictionary=True)
@@ -22,6 +23,9 @@ def get_users_route():
     if description_filter:
         filters.append("description = %s")
         values.append(description_filter)
+    if id_filter:
+        filters.append("id = %s")
+        values.append(id_filter)
 
     if filters:
         query = f"{base_query} WHERE {' AND '.join(filters)}"
